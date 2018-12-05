@@ -1,7 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 const _ = require('underscore');
+const Promise = require('bluebird');
 const counter = require('./counter');
+var rd = Promise.promisify(fs.readdir);
+var rf = Promise.promisify(fs.readFile);
 
 var items = {};
 
@@ -24,16 +27,34 @@ exports.create = (text, callback) => {
 
 exports.readAll = (callback) => {
   var arr = [];
-  fs.readdir(exports.dataDir, (err, files) => {
-    _.each(files, (file) => {
-      var name = file.toString().slice(0,5);
-      var obj = {"id": name, "text": name};
-      arr.push(obj);
-    });
-    callback(null, arr);   
-  });
-};
+  
+  return rd(exports.dataDir)
+    .then((files) => {
+      _.each(files, (file) => {
+        arr.push(rf(path.join(exports.dataDir, file),'utf8')
+          .then((content) => {
+            var obj = {};
+            obj.id = file.slice(0,5);
+            obj.text = content;
+            return obj;
+          }));
+      });
+      return Promise.all(arr);
+    }).then((values) => {
+      callback(null, values);
+    });   
+}
+      
 
+  
+  
+// read dir => db.fs.readdir(exports.dataDir)
+  // return files
+// itterate over files => _.each
+  // read indiv files => cb.fs.readfile() 
+  // while reading, put body content into obj.text and put name into obj.id
+    // push obj into array
+// invoke callback on array 
 
 exports.readOne = (id, callback) => {
   fs.readFile(path.join(exports.dataDir, id+'.txt'), (err, content) => {
